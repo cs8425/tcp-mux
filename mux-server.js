@@ -112,7 +112,7 @@ if (cluster.isMaster) {
 	});
 	to_demux.on('end', function() {
 		console.log(now(), '[to mux End]');
-		hub.destroy();
+		to_demux.destroy();
 	});
 	to_demux.on('close', function() {
 		console.log(now(), '[to mux disconnected]');

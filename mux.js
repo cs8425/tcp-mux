@@ -290,12 +290,13 @@ function mux(mux_io){
 		}
 		clearTimeout(meta.idleTmr);
 		meta.idleTmr = setTimeout(do_ping, (rand(13, 24))*1000);
+		meta.idleTmr.unref();
 	}
 
 	meta.rechunker = new rechunk(mux_io, pack_in);
 	pack_in.on('data', parse_pack);
 	meta.idleTmr = setTimeout(do_ping, (rand(13, 24))*1000);
-
+	meta.idleTmr.unref();
 }
 util.inherits(mux, EventEmitter);
 mux.prototype.count = function (){
@@ -393,6 +394,7 @@ if(len == 0) log('[mux write]length == 0 !!', id, data);
 		}
 	}
 	this.idleTmr = setTimeout(this.do_ping, (this.rand(13, 24))*1000);
+	this.idleTmr.unref();
 }
 mux.prototype.error = function (ch_id, err){
 	// ch input error
