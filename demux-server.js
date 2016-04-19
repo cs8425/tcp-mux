@@ -4,8 +4,8 @@ var net = require('net');
 var util = require('util');
 var cluster = require('cluster');
 
-var crypto = require('crypto');
-var repl = require("repl");
+var tls = require('tls');
+var fs = require('fs');
 
 var mux = require('./mux.js');
 
@@ -220,14 +220,26 @@ var handler = function (socket){
 }
 
 	var demux_ser = function (host, port){
-		var hub = net.createServer({
+		var options = {
+			key: fs.readFileSync('tls/server.key'),
+			cert: fs.readFileSync('tls/server.crt'),
+
+			// This is necessary only if using the client certificate authentication.
+			requestCert: true,
+			rejectUnauthorized: true,
+
+			// This is necessary only if the client uses the self-signed certificate.
+			ca: [ fs.readFileSync('tls/userA.crt') ]
+		};
+		/*var hub = net.createServer({
 			allowHalfOpen: false,
 			pauseOnConnect: false
-		});
+		});*/
+		var hub = tls.createServer(options);
 		var iomux = null;
 
-		hub.on('connection', function (socket){
-//console.log('connection', socket);
+//		hub.on('connection', function (socket){
+		hub.on('secureConnection', function (socket){
 			iomux = new mux.mux(socket);
 
 			var new_ch = function (ch_id){

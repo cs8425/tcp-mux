@@ -2,8 +2,9 @@
 
 var net = require('net');
 var cluster = require('cluster');
-var crypto = require('crypto');
-var repl = require("repl");
+
+var tls = require('tls');
+var fs = require('fs');
 
 var Mux = require('./mux.js');
 
@@ -102,7 +103,21 @@ if (cluster.isMaster) {
 		return new_server;
 	};
 
-	var to_demux = net.connect(conf.port, conf.host);
+	var options = {
+		// These are necessary only if using the client certificate authentication
+		key: fs.readFileSync('tls/userA.key'),
+		cert: fs.readFileSync('tls/userA.crt'),
+
+		// This is necessary only if the server uses the self-signed certificate
+		ca: [ fs.readFileSync('tls/server.crt') ],
+
+		checkServerIdentity: function (host, cert) {
+			return undefined;
+		}
+	};
+
+	var to_demux = tls.connect(conf.port, conf.host, options);
+//	var to_demux = net.connect(conf.port, conf.host, options);
 	to_demux.on('connect', function (){
 		var ser = allo_server(to_demux);
 		ser.listen(conf.bind);
