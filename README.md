@@ -4,8 +4,8 @@ Multiplexing on top of TCP, combine many tcp connections to 1.
 ##Features/Limitations
 
 - up to 255 channels only
-- raw tcp *only* now
-- local mux server will *not* auto re-connect
+- ~~raw tcp *only* now~~
+- ~~local mux server will *not* auto re-connect~~
 
 ##Architecture
 
@@ -56,8 +56,8 @@ In example, mux server will bind to port `8081`.
 
 
 ##TODO
-- [ ] mux server auto re-connect
-- [ ] add TLS/SSL or some else encryption
+- [x] mux server auto re-connect
+- [x] add TLS/SSL or some else encryption
 
 
 

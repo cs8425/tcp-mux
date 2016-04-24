@@ -11,6 +11,22 @@ var log = function(){}
 
 var dlog = console.log;
 
+var pand = function(num) {
+    return (num < 10) ? '0' + num : num + '';
+}
+
+var now = function() {
+    var t = new Date();
+    var out = '[';
+    out += t.getFullYear();
+    out += '/' + pand(t.getMonth() + 1);
+    out += '/' + pand(t.getDate());
+    out += ' ' + pand(t.getHours());
+    out += ':' + pand(t.getMinutes());
+    out += ':' + pand(t.getSeconds()) + ']';
+    return out;
+}
+
 var Mux = {};
 module.exports = Mux;
 
@@ -110,9 +126,6 @@ const ACT = {
 	ERR: 4,
 	PNG: 8,
 	ACK: 9,
-	ESC: 12,
-	FC: 15,
-
 }
 
 const CMD = 0xFF;
@@ -272,14 +285,6 @@ function mux(mux_io){
 					ev = 'ack';
 					log('[pack][CTRL]', ev);
 				break;
-				case ACT.FC:
-					ev = 'fc';
-					log('[pack][CTRL]', ev);
-				break;
-				case ACT.ESC:
-					ev = 'esc';
-					log('[pack][CTRL]', ev);
-				break;
 			}
 			if(ev){
 				log('[pack][CTRL]', out, ev);
@@ -325,7 +330,7 @@ var binding = function(self, id, socket, type){
 			self.write(id, data);
 		});
 		socket.on('close', function(){
-			log(head + '[ch' + id + ']close');
+			log(now(), head + '[ch' + id + ']close');
 			self.close(id, !(socket.flag & ACT.CLS));
 		});
 		socket.on('end', function(){
@@ -445,22 +450,6 @@ mux.prototype.ack = function (){
 	var buf = new Buffer([CMD, 0xFF, ACT.ACK]);
 	mux_io.write(buf);
 }
-mux.prototype.esc = function (){
-	// fc
-	log('[mux esc]');
-	var mux_io = this.mux_io;
-
-	var buf = new Buffer([CMD, 0xFF, ACT.ESC]);
-	mux_io.write(buf);
-}
-mux.prototype.fc = function (){
-	// fc
-	log('[mux fc]');
-	var mux_io = this.mux_io;
-
-	var buf = new Buffer([CMD, 0xFF, ACT.FC]);
-	mux_io.write(buf);
-}
 
 
 Mux.rechunk = rechunk;
@@ -474,6 +463,8 @@ function Socket(isserver, client, options){
 	stream.Duplex.call(this, options);
 
 	var self = this;
+	self.bytesRead = 0;
+	self.bytesWritten = 0;
 	self.timer = null;
 	self.timeout = null;
 	self.timeoutFn = null;
@@ -498,6 +489,7 @@ Socket.prototype._read = function(n){
 		self.timer = setTimeout(self.__timeout, self.timeout);
 		self.timer.unref();
 	}
+	self.bytesRead += n;
 };
 Socket.prototype._write = function(data, encoding, cb){
 	var self = this;
@@ -509,6 +501,7 @@ Socket.prototype._write = function(data, encoding, cb){
 
 	var output = (this.isserver) ? this.client : this.server;
 	output.push(data);
+	self.bytesWritten += data.length;
 //	log('[Socket][_write]', this.isserver, data, output.isserver);
 	cb();
 };

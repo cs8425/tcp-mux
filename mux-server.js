@@ -28,7 +28,9 @@ if (cluster.isMaster) {
     cluster.fork();
     cluster.on('exit', function(worker, code, signal) {
         console.log(now(), 'worker ' + worker.process.pid + ' died');
-        cluster.fork();
+		var t = setTimeout(function(){
+	        cluster.fork();
+		}, 3000);
     });
 
 } else {
@@ -132,6 +134,7 @@ if (cluster.isMaster) {
 	to_demux.on('close', function() {
 		console.log(now(), '[to mux disconnected]');
 //		var t = setTimeout(connect, 3000);
+		process.disconnect();
 	});
 
 }

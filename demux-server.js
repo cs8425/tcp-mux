@@ -44,13 +44,17 @@ var sockslog = function (){
 	console.log.apply(null, arguments)
 }
 
-var handleRequest = function (chunk) {
+var handleRequest = function (data) {
 	var client = this;
 	var client_ip = client.remoteAddress;
 	var client_port = client.remotePort;
 	var errBuf = new Buffer([0x05, 0x01]);
 
 	client.pause();
+	if(!client.buf) client.buf = new Buffer(0);
+	var chunk = client.buf = Buffer.concat([client.buf, data]);
+
+//	sockslog('[handleRequest]chunk', chunk.length, chunk);
 
 	if (chunk[0] !== 0x05 && chunk[2] !== 0x00) {
 		sockslog('[handleRequest]wrong socks version: %d', chunk[0]);
@@ -73,7 +77,12 @@ var handleRequest = function (chunk) {
 
 	switch(addrtype){
 		case 0x01: // ipv4
-			if(chunk.length < 10) return; // 4 for host + 2 for port
+			if(chunk.length < 10){ // 4 for host + 2 for port
+				sockslog('[handleRequest][IPv4]err len: 4 for host + 2 for port', chunk.length);
+				client.once('data', handleRequest);
+				client.resume();
+				return;
+			}
 			host = util.format('%d.%d.%d.%d', chunk[4], chunk[5], chunk[6], chunk[7]);
 			port = chunk.readUInt16BE(8);
 			responseBuf = new Buffer(10);
@@ -82,22 +91,37 @@ var handleRequest = function (chunk) {
 		break;
 
 		case 0x03: // dns
-			if(chunk.length < 5) return; // if no length present yet
+			if(chunk.length < 5){ // if no length present yet
+				client.once('data', handleRequest);
+				client.resume();
+				return;
+			}
 			var addrLength = chunk[4];
-			if(chunk.length < 5 + addrLength + 2) return; // host + port
+			if(chunk.length < 5 + addrLength + 2){ // host + port
+				sockslog('[handleRequest][DNS]err len', chunk.length, 5 + addrLength + 2);
+				client.once('data', handleRequest);
+				client.resume();
+				return;
+			}
 			host = chunk.toString('utf8', 5, 5 + addrLength);
 			port = chunk.readUInt16BE(5 + addrLength);
 			responseBuf = new Buffer(5 + addrLength + 2);
 			chunk.copy(responseBuf, 0, 0, 5 + addrLength + 2);
 			chunk = chunk.slice(5 + addrLength + 2);
+		break;
 
 		case 0x04: // ipv6
-			if(chunk.length < 22) return // 16 for host + 2 for port
+			if(chunk.length < 22){ // 16 for host + 2 for port
+				client.once('data', handleRequest);
+				client.resume();
+				return;
+			}
 			host = chunk.slice(4, 20);
 			port = chunk.readUInt16BE(20);
 			responseBuf = new Buffer(22);
 			chunk.copy(responseBuf, 0, 0, 22);
 			chunk = chunk.slice(22);
+		break;
 
 		default:
 			sockslog('unsupported address type: %d', addrtype);
@@ -121,6 +145,8 @@ var handleRequest = function (chunk) {
 			client.emit(chunk)
 			chunk = null
 		}
+
+		client.buf = null;
 
 	}).once('error', function(err) {
 		sockslog('[forward error]', client_ip, client_port, ' -> ', host, port, err);
@@ -252,11 +278,11 @@ var handler = function (socket){
 					socket.remoteAddress = socket.server.remoteAddress = host;
 					socket.remotePort = socket.server.remotePort = port + '-' + id;
 					console.log('[new_ch]', ch_id, iomux.count());
+					handler(socket.server);
 				}else{
 					console.log('[new_ch][full]', ch_id, self.count());
 					socket.destroy();
 				}
-				handler(socket.server);
 			}
 			iomux.on('new_ch', new_ch);
 
